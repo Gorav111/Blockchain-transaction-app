@@ -95,6 +95,8 @@ export const Web3Provider = ({ children }) => {
 
       const parsedAmount = ethers.utils.parseEther(amountString);
 
+      const startTime = Date.now(); // ⏱️ Start time
+
       const transaction = await contract.addToBlockchain(
         to,
         parsedAmount,
@@ -104,7 +106,37 @@ export const Web3Provider = ({ children }) => {
       );
 
       toast.info('Transaction in progress...');
-      await transaction.wait();
+      const receipt = await transaction.wait(); // ⛓️ Wait for mining
+
+      const endTime = Date.now(); // ⏱️ End time
+
+      //  Begin Metrics Logging
+      const block = await provider.getBlock(receipt.blockNumber);
+      const success = receipt.status === 1;
+      const durationSec = ((endTime - startTime) / 1000).toFixed(2);
+      const confirmationDelaySec = (block.timestamp - Math.floor(startTime / 1000)).toFixed(2);
+      const gasUsed = receipt.gasUsed?.toString();
+      const gasPriceWei = receipt.effectiveGasPrice?.toString();
+
+      let txCostEth = "N/A";
+      if (gasUsed && gasPriceWei) {
+        const costWei = BigInt(gasUsed) * BigInt(gasPriceWei);
+        txCostEth = ethers.utils.formatEther(costWei);
+      }
+
+      console.log("Transaction Metrics");
+      console.log(`- Transaction Hash: ${transaction.hash}`);
+      console.log(`- Status: ${success ? "Success" : "Failure"}`);
+      console.log(`- Start Time: ${new Date(startTime).toLocaleString()}`);
+      console.log(`- End Time: ${new Date(endTime).toLocaleString()}`);
+      console.log(`- Duration: ${durationSec} seconds`);
+      console.log(`- Confirmation Delay: ${confirmationDelaySec} seconds`);
+      console.log(`- Gas Used: ${gasUsed}`);
+      console.log(`- Gas Price (Wei): ${gasPriceWei}`);
+      console.log(`- Transaction Cost (ETH): ${txCostEth}`);
+      console.log(`- Block Number: ${receipt.blockNumber}`);
+      console.log(`- Block Timestamp: ${new Date(block.timestamp * 1000).toLocaleString()}`);
+      //  End Metrics Logging
       toast.success('Transaction successful!');
 
       await getBalance(account);
